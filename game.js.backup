@@ -1,0 +1,969 @@
+// ========== 遊戲配置 ==========
+const CONFIG = {
+    CANVAS_WIDTH: 1200,
+    CANVAS_HEIGHT: 800,
+    PLAYER_SIZE: 30,
+    ENEMY_SIZE: 25,
+    XP_SIZE: 10,
+    XP_ORB_VALUE: 10
+};
+
+// ========== 角色定義 ==========
+const CHARACTERS = [
+    {
+        id: 'warrior',
+        name: '戰士',
+        emoji: '⚔️',
+        color: '#e94560',
+        hp: 100,
+        speed: 3,
+        attackRange: 80,
+        attackSpeed: 1,
+        damage: 15,
+        ability: '勇氣怒火 - 周圍敵人持續受到傷害',
+        abilityType: 'passive',
+        passiveDamage: 5,
+        passiveRange: 120
+    },
+    {
+        id: 'archer',
+        name: '弓箭手',
+        emoji: '🏹',
+        color: '#0f3460',
+        hp: 70,
+        speed: 4,
+        attackRange: 200,
+        attackSpeed: 0.8,
+        damage: 20,
+        ability: '快速射擊 - 攻擊速度提升30%',
+        abilityType: 'passive',
+        attackSpeedBonus: 0.3
+    },
+    {
+        id: 'mage',
+        name: '法師',
+        emoji: '🔮',
+        color: '#9b59b6',
+        hp: 60,
+        speed: 3,
+        attackRange: 250,
+        attackSpeed: 0.6,
+        damage: 35,
+        ability: '魔法護盾 - 有機率免疫傷害',
+        abilityType: 'passive',
+        shieldChance: 0.2
+    },
+    {
+        id: 'paladin',
+        name: '聖騎士',
+        emoji: '🛡️',
+        color: '#f39c12',
+        hp: 120,
+        speed: 2.5,
+        attackRange: 60,
+        attackSpeed: 1.2,
+        damage: 12,
+        ability: '聖光治癒 - 殺敵時恢復生命',
+        abilityType: 'passive',
+        healOnKill: 5,
+        unlockCondition: '達到等級 10',
+        unlockCheck: (saveData) => saveData.maxLevel >= 10
+    },
+    {
+        id: 'assassin',
+        name: '刺客',
+        emoji: '🗡️',
+        color: '#1abc9c',
+        hp: 80,
+        speed: 5,
+        attackRange: 70,
+        attackSpeed: 1.5,
+        damage: 25,
+        ability: '致命一擊 - 20%機率造成雙倍傷害',
+        abilityType: 'passive',
+        critChance: 0.2,
+        critMultiplier: 2,
+        unlockCondition: '擊殺 500 隻敵人',
+        unlockCheck: (saveData) => saveData.totalKills >= 500
+    },
+    {
+        id: 'necromancer',
+        name: '死靈法師',
+        emoji: '💀',
+        color: '#8e44ad',
+        hp: 90,
+        speed: 3.5,
+        attackRange: 150,
+        attackSpeed: 1,
+        damage: 18,
+        ability: '靈魂召喚 - 殺敵有機率召喚骷髏',
+        abilityType: 'passive',
+        summonChance: 0.1,
+        unlockCondition: '存活 10 分鐘',
+        unlockCheck: (saveData) => saveData.maxSurvivalTime >= 600
+    }
+];
+
+// ========== 升級選項 ==========
+const UPGRADES = [
+    {
+        id: 'damage',
+        name: '攻擊力提升',
+        icon: '💪',
+        description: '增加 20% 傷害',
+        apply: (player) => {
+            player.damage *= 1.2;
+            player.damageUpgraded = (player.damageUpgraded || 0) + 1;
+        }
+    },
+    {
+        id: 'attackSpeed',
+        name: '攻擊速度提升',
+        icon: '⚡',
+        description: '增加 15% 攻擊速度',
+        apply: (player) => {
+            player.attackSpeed *= 1.15;
+            player.attackSpeedUpgraded = (player.attackSpeedUpgraded || 0) + 1;
+        }
+    },
+    {
+        id: 'maxHP',
+        name: '生命值提升',
+        icon: '❤️',
+        description: '增加 30 最大生命',
+        apply: (player) => {
+            player.maxHP += 30;
+            player.hp = Math.min(player.hp + 30, player.maxHP);
+            player.hpUpgraded = (player.hpUpgraded || 0) + 1;
+        }
+    },
+    {
+        id: 'speed',
+        name: '移動速度提升',
+        icon: '👟',
+        description: '增加 10% 移動速度',
+        apply: (player) => {
+            player.speed *= 1.1;
+            player.speedUpgraded = (player.speedUpgraded || 0) + 1;
+        }
+    },
+    {
+        id: 'attackRange',
+        name: '攻擊範圍提升',
+        icon: '🎯',
+        description: '增加 20% 攻擊範圍',
+        apply: (player) => {
+            player.attackRange *= 1.2;
+            player.attackRangeUpgraded = (player.attackRangeUpgraded || 0) + 1;
+        }
+    },
+    {
+        id: 'healing',
+        name: '治療',
+        icon: '💖',
+        description: '恢復 50% 生命值',
+        apply: (player) => {
+            player.hp = Math.min(player.hp + player.maxHP * 0.5, player.maxHP);
+            player.healingUpgraded = (player.healingUpgraded || 0) + 1;
+        }
+    }
+];
+
+// ========== 敵人類型 ==========
+const ENEMY_TYPES = [
+    { name: '史萊姆', color: '#2ecc71', hp: 20, speed: 1.5, damage: 5, xp: 10 },
+    { name: '骷髏', color: '#ecf0f1', hp: 30, speed: 2, damage: 8, xp: 15 },
+    { name: '蝙蝠', color: '#9b59b6', hp: 15, speed: 3, damage: 4, xp: 8 },
+    { name: '哥布林', color: '#e74c3c', hp: 40, speed: 2.5, damage: 10, xp: 20 },
+    { name: '巨型史萊姆', color: '#27ae60', hp: 60, speed: 1, damage: 15, xp: 30 }
+];
+
+// ========== 遊戲狀態 ==========
+let canvas, ctx;
+let gameState = 'menu'; // menu, playing, paused, gameover
+let selectedCharacter = null;
+let saveData = {
+    unlockedCharacters: ['warrior', 'archer', 'mage'],
+    maxLevel: 0,
+    totalKills: 0,
+    maxSurvivalTime: 0
+};
+
+let player = {
+    x: CONFIG.CANVAS_WIDTH / 2,
+    y: CONFIG.CANVAS_HEIGHT / 2,
+    hp: 100,
+    maxHP: 100,
+    speed: 3,
+    damage: 15,
+    attackRange: 80,
+    attackSpeed: 1,
+    xp: 0,
+    level: 1,
+    xpToNext: 100
+};
+
+let enemies = [];
+let projectiles = [];
+let xpOrbs = [];
+let summons = [];
+let keys = {};
+let gameLoop;
+let lastTime = 0;
+let gameTime = 0;
+let killCount = 0;
+let lastAttackTime = 0;
+
+// ========== 初始化 ==========
+function init() {
+    canvas = document.getElementById('gameCanvas');
+    ctx = canvas.getContext('2d');
+    canvas.width = CONFIG.CANVAS_WIDTH;
+    canvas.height = CONFIG.CANVAS_HEIGHT;
+
+    loadSaveData();
+    renderCharacterGrid();
+
+    // 事件監聽
+    window.addEventListener('keydown', (e) => {
+        keys[e.key.toLowerCase()] = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+        keys[e.key.toLowerCase()] = false;
+    });
+}
+
+// ========== 存檔系統 ==========
+function loadSaveData() {
+    const saved = localStorage.getItem('roguelite_save');
+    if (saved) {
+        saveData = { ...saveData, ...JSON.parse(saved) };
+    }
+}
+
+function saveGameData() {
+    localStorage.setItem('roguelite_save', JSON.stringify(saveData));
+}
+
+function updateSaveStats() {
+    saveData.maxLevel = Math.max(saveData.maxLevel, player.level);
+    saveData.totalKills += killCount;
+    saveData.maxSurvivalTime = Math.max(saveData.maxSurvivalTime, Math.floor(gameTime));
+    saveGameData();
+}
+
+// ========== 角色選擇界面 ==========
+function renderCharacterGrid() {
+    const grid = document.getElementById('character-grid');
+    grid.innerHTML = '';
+
+    CHARACTERS.forEach(char => {
+        const isUnlocked = saveData.unlockedCharacters.includes(char.id);
+        const card = document.createElement('div');
+        card.className = `character-card ${isUnlocked ? '' : 'locked'}`;
+        
+        if (isUnlocked) {
+            card.onclick = () => selectCharacter(char);
+            card.innerHTML = `
+                <div style="font-size: 48px; margin-bottom: 10px;">${char.emoji}</div>
+                <div class="character-name">${char.name}</div>
+                <div class="character-ability">${char.ability}</div>
+                <div class="character-stats">
+                    ❤️ HP: ${char.hp}<br>
+                    ⚡ 速度: ${char.speed}<br>
+                    💪 傷害: ${char.damage}
+                </div>
+            `;
+        } else {
+            card.innerHTML = `
+                <div class="lock-icon">🔒</div>
+                <div class="character-name">${char.name}</div>
+                <div class="unlock-condition">${char.unlockCondition}</div>
+            `;
+        }
+        
+        grid.appendChild(card);
+    });
+}
+
+function selectCharacter(character) {
+    selectedCharacter = character;
+    document.querySelectorAll('.character-card').forEach(card => {
+        card.style.borderColor = card.textContent.includes(character.name) ? '#e94560' : '#0f3460';
+    });
+}
+
+// ========== 遊戲開始 ==========
+function startGame() {
+    if (!selectedCharacter) {
+        alert('請先選擇一個角色！');
+        return;
+    }
+
+    // 初始化玩家 - 使用深拷贝避免修改原始角色数据
+    player = {
+        ...JSON.parse(JSON.stringify(selectedCharacter)),
+        x: CONFIG.CANVAS_WIDTH / 2,
+        y: CONFIG.CANVAS_HEIGHT / 2,
+        xp: 0,
+        level: 1,
+        xpToNext: 100,
+        maxHP: selectedCharacter.hp
+    };
+
+    // 重置遊戲狀態
+    enemies = [];
+    projectiles = [];
+    xpOrbs = [];
+    summons = [];
+    gameTime = 0;
+    killCount = 0;
+    lastAttackTime = 0;
+
+    // 隱藏升級選單（如果存在）
+    const upgradeMenu = document.getElementById('upgrade-menu');
+    if (upgradeMenu) {
+        upgradeMenu.classList.add('hidden');
+    }
+
+    // 切換界面
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('game-over-screen').classList.add('hidden');
+    document.getElementById('hud').style.display = 'block';
+    gameState = 'playing';
+
+    // 初始化升級列表
+    updateUpgradesList();
+
+    // 開始遊戲循環
+    lastTime = performance.now();
+    gameLoop = requestAnimationFrame(update);
+}
+
+// ========== 遊戲主循環 ==========
+function update(currentTime) {
+    // 如果遊戲暫停或結束，繼續請求下一幀但不更新遊戲邏輯
+    if (gameState !== 'playing') {
+        gameLoop = requestAnimationFrame(update);
+        return;
+    }
+
+    const deltaTime = (currentTime - lastTime) / 1000;
+    lastTime = currentTime;
+    gameTime += deltaTime;
+
+    // 更新遊戲邏輯
+    updatePlayer(deltaTime);
+    updateEnemies(deltaTime);
+    updateProjectiles(deltaTime);
+    updateXPOrbs();
+    updateSummons(deltaTime);
+    spawnEnemies();
+    checkLevelUp();
+
+    // 渲染
+    render();
+
+    // 更新 HUD
+    updateHUD();
+
+    gameLoop = requestAnimationFrame(update);
+}
+
+// ========== 玩家更新 ==========
+function updatePlayer(deltaTime) {
+    let dx = 0, dy = 0;
+
+    if (keys['w'] || keys['arrowup']) dy -= 1;
+    if (keys['s'] || keys['arrowdown']) dy += 1;
+    if (keys['a'] || keys['arrowleft']) dx -= 1;
+    if (keys['d'] || keys['arrowright']) dx += 1;
+
+    // 正規化移動向量
+    if (dx !== 0 || dy !== 0) {
+        const length = Math.sqrt(dx * dx + dy * dy);
+        dx /= length;
+        dy /= length;
+    }
+
+    // 使用 deltaTime 以保持恒定速度
+    player.x += dx * player.speed * deltaTime * 60;
+    player.y += dy * player.speed * deltaTime * 60;
+
+    // 邊界限制
+    player.x = Math.max(CONFIG.PLAYER_SIZE, Math.min(CONFIG.CANVAS_WIDTH - CONFIG.PLAYER_SIZE, player.x));
+    player.y = Math.max(CONFIG.PLAYER_SIZE, Math.min(CONFIG.CANVAS_HEIGHT - CONFIG.PLAYER_SIZE, player.y));
+
+    // 弓箭手攻擊速度加成
+    if (player.id === 'archer') {
+        player.attackSpeed *= (1 + (player.attackSpeedBonus || 0));
+    }
+
+// 自動攻擊
+    const effectiveAttackSpeed = player.attackSpeed;
+    if (performance.now() - lastAttackTime > (1 / effectiveAttackSpeed) * 1000) {
+        autoAttack();
+        lastAttackTime = performance.now();
+    }
+
+    // 被動技能效果
+    applyPassiveSkills();
+}
+
+function autoAttack() {
+    // 尋找最近的敵人
+    let nearestEnemy = null;
+    let minDist = player.attackRange;
+
+    enemies.forEach(enemy => {
+        const dist = getDistance(player, enemy);
+        if (dist < minDist) {
+            minDist = dist;
+            nearestEnemy = enemy;
+        }
+    });
+
+    if (nearestEnemy) {
+        createProjectile(player, nearestEnemy);
+    }
+}
+
+function createProjectile(from, to) {
+    const angle = Math.atan2(to.y - from.y, to.x - from.x);
+    let damage = player.damage;
+
+    // 刺客暴擊
+    if (player.id === 'assassin' && Math.random() < (player.critChance || 0)) {
+        damage *= (player.critMultiplier || 2);
+    }
+
+    projectiles.push({
+        x: from.x,
+        y: from.y,
+        vx: Math.cos(angle) * 8,
+        vy: Math.sin(angle) * 8,
+        damage: damage,
+        owner: 'player',
+        crit: damage > player.damage
+    });
+}
+
+function applyPassiveSkills() {
+    // 戰士的勇氣怒火 - 周圍敵人持續受到傷害
+    if (player.id === 'warrior') {
+        const range = player.passiveRange || 120;
+        const damagePerSecond = player.passiveDamage || 5;
+
+        enemies.forEach(enemy => {
+            const dist = getDistance(player, enemy);
+
+            if (dist < range && enemy.hp > 0) {
+                // 每幀造成的傷害 = 每秒傷害 / 60 (假設 60fps)
+                enemy.hp -= damagePerSecond / 60;
+
+                // 如果敵人死亡，立即掉落 XP 並標記為已處理
+                if (enemy.hp <= 0 && !enemy.passiveKilled) {
+                    enemy.passiveKilled = true;
+                    xpOrbs.push({
+                        x: enemy.x,
+                        y: enemy.y,
+                        value: enemy.xp
+                    });
+                    killCount++;
+
+                    // 聖騎士治癒
+                    if (player.id === 'paladin') {
+                        player.hp = Math.min(player.hp + (player.healOnKill || 5), player.maxHP);
+                    }
+
+                    // 死靈法師召喚
+                    if (player.id === 'necromancer' && Math.random() < (player.summonChance || 0)) {
+                        createSummon(enemy.x, enemy.y);
+                    }
+                }
+            }
+        });
+    }
+}
+
+// ========== 敵人系統 ==========
+function spawnEnemies() {
+    const spawnRate = Math.max(0.5, 2 - gameTime / 300);
+    const maxEnemies = Math.min(50, 10 + Math.floor(gameTime / 60));
+
+    if (enemies.length < maxEnemies && Math.random() < spawnRate * 0.016) {
+        const side = Math.floor(Math.random() * 4);
+        let x, y;
+
+        switch (side) {
+            case 0: x = Math.random() * CONFIG.CANVAS_WIDTH; y = -CONFIG.ENEMY_SIZE; break;
+            case 1: x = CONFIG.CANVAS_WIDTH + CONFIG.ENEMY_SIZE; y = Math.random() * CONFIG.CANVAS_HEIGHT; break;
+            case 2: x = Math.random() * CONFIG.CANVAS_WIDTH; y = CONFIG.CANVAS_HEIGHT + CONFIG.ENEMY_SIZE; break;
+            case 3: x = -CONFIG.ENEMY_SIZE; y = Math.random() * CONFIG.CANVAS_HEIGHT; break;
+        }
+
+        // 根據遊戲時間選擇敵人類型
+        const typeIndex = Math.min(
+            Math.floor(gameTime / 120),
+            ENEMY_TYPES.length - 1
+        );
+        const type = ENEMY_TYPES[Math.floor(Math.random() * (typeIndex + 1))];
+
+        enemies.push({
+            x, y,
+            hp: type.hp * (1 + gameTime / 600),
+            maxHP: type.hp * (1 + gameTime / 600),
+            speed: type.speed,
+            damage: type.damage,
+            color: type.color,
+            name: type.name,
+            xp: type.xp
+        });
+    }
+}
+
+function updateEnemies(deltaTime) {
+    enemies = enemies.filter(enemy => {
+        // 移除已死亡的敵人（被動技能已經處理過的）
+        if (enemy.hp <= 0) return false;
+
+        // 移動朝向玩家（使用 deltaTime 以保持恒定速度）
+        const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+        enemy.x += Math.cos(angle) * enemy.speed * deltaTime * 60;
+        enemy.y += Math.sin(angle) * enemy.speed * deltaTime * 60;
+
+        // 碰撞檢測 - 玩家
+        if (getDistance(enemy, player) < CONFIG.PLAYER_SIZE + CONFIG.ENEMY_SIZE / 2) {
+            // 法師護盾
+            if (player.id === 'mage' && Math.random() < (player.shieldChance || 0)) {
+                // 免疫此次傷害
+            } else {
+                player.hp -= enemy.damage;
+                if (player.hp <= 0) {
+                    gameOver();
+                }
+            }
+            // 碰撞後彈開
+            const bounceAngle = angle + Math.PI;
+            enemy.x += Math.cos(bounceAngle) * 30;
+            enemy.y += Math.sin(bounceAngle) * 30;
+        }
+
+        // 碰撞檢測 - 召喚物
+        summons.forEach(summon => {
+            if (getDistance(enemy, summon) < CONFIG.PLAYER_SIZE + CONFIG.ENEMY_SIZE / 2) {
+                enemy.hp -= 10;
+                // 檢查敵人是否被召喚物擊殺
+                if (enemy.hp <= 0 && !enemy.passiveKilled) {
+                    enemy.passiveKilled = true;
+                    xpOrbs.push({
+                        x: enemy.x,
+                        y: enemy.y,
+                        value: enemy.xp
+                    });
+                    killCount++;
+
+                    // 聖騎士治癒
+                    if (player.id === 'paladin') {
+                        player.hp = Math.min(player.hp + (player.healOnKill || 5), player.maxHP);
+                    }
+
+                    // 死靈法師召喚
+                    if (player.id === 'necromancer' && Math.random() < (player.summonChance || 0)) {
+                        createSummon(enemy.x, enemy.y);
+                    }
+                }
+            }
+        });
+
+        return true;
+    });
+}
+
+// ========== 子彈系統 ==========
+function updateProjectiles(deltaTime) {
+    projectiles = projectiles.filter(proj => {
+        // 使用 deltaTime 以保持恒定速度
+        proj.x += proj.vx * deltaTime * 60;
+        proj.y += proj.vy * deltaTime * 60;
+
+        // 檢查是否超出邊界
+        if (proj.x < 0 || proj.x > CONFIG.CANVAS_WIDTH ||
+            proj.y < 0 || proj.y > CONFIG.CANVAS_HEIGHT) {
+            return false;
+        }
+
+        // 碰撞檢測
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const enemy = enemies[i];
+            if (getDistance(proj, enemy) < CONFIG.ENEMY_SIZE) {
+                enemy.hp -= proj.damage;
+
+                if (enemy.hp <= 0) {
+                    killEnemy(i);
+                }
+                return false;
+            }
+        }
+
+        return true;
+    });
+}
+
+// ========== 召喚物系統 ==========
+function updateSummons(deltaTime) {
+    summons = summons.filter(summon => {
+        const lifetime = 10000;
+        const age = performance.now() - summon.spawnTime;
+
+        if (age > lifetime) return false;
+
+        // 尋找最近的敵人
+        let nearestEnemy = null;
+        let minDist = 100;
+
+        enemies.forEach(enemy => {
+            const dist = getDistance(summon, enemy);
+            if (dist < minDist) {
+                minDist = dist;
+                nearestEnemy = enemy;
+            }
+        });
+
+        if (nearestEnemy) {
+            const angle = Math.atan2(nearestEnemy.y - summon.y, nearestEnemy.x - summon.x);
+            // 使用 deltaTime 以保持恒定速度
+            summon.x += Math.cos(angle) * 2 * deltaTime * 60;
+            summon.y += Math.sin(angle) * 2 * deltaTime * 60;
+        }
+
+        return true;
+    });
+}
+
+function createSummon(x, y) {
+    summons.push({
+        x, y,
+        spawnTime: performance.now()
+    });
+}
+
+// ========== 經驗值系統 ==========
+function killEnemy(index) {
+    const enemy = enemies[index];
+    xpOrbs.push({
+        x: enemy.x,
+        y: enemy.y,
+        value: enemy.xp
+    });
+    killCount++;
+
+    // 聖騎士治癒
+    if (player.id === 'paladin') {
+        player.hp = Math.min(player.hp + (player.healOnKill || 5), player.maxHP);
+    }
+
+    // 死靈法師召喚
+    if (player.id === 'necromancer' && Math.random() < (player.summonChance || 0)) {
+        createSummon(enemy.x, enemy.y);
+    }
+}
+
+function updateXPOrbs() {
+    xpOrbs = xpOrbs.filter(orb => {
+        const dist = getDistance(player, orb);
+        
+        if (dist < 50) {
+            const angle = Math.atan2(player.y - orb.y, player.x - orb.x);
+            orb.x += Math.cos(angle) * 5;
+            orb.y += Math.sin(angle) * 5;
+        }
+
+        if (dist < CONFIG.PLAYER_SIZE) {
+            player.xp += orb.value;
+            return false;
+        }
+
+        return true;
+    });
+}
+
+function checkLevelUp() {
+    if (player.xp >= player.xpToNext) {
+        player.xp -= player.xpToNext;
+        player.level++;
+        player.xpToNext = Math.floor(player.xpToNext * 1.5);
+
+        // 顯示升級選單
+        showUpgradeMenu();
+    }
+}
+
+// ========== 升級選單 ==========
+function showUpgradeMenu() {
+    // 確保遊戲狀態正確
+    if (gameState !== 'playing') return;
+
+    gameState = 'paused';
+    const menu = document.getElementById('upgrade-menu');
+    const options = document.getElementById('upgrade-options');
+
+    // 清空選項容器
+    options.innerHTML = '';
+
+    // 隨機選擇 3 個升級選項
+    const shuffled = [...UPGRADES].sort(() => Math.random() - 0.5);
+    const choices = shuffled.slice(0, 3);
+
+    choices.forEach(upgrade => {
+        const card = document.createElement('div');
+        card.className = 'upgrade-card';
+        const level = player[upgrade.id + 'Upgraded'] || 0;
+        card.innerHTML = `
+            <div class="upgrade-icon">${upgrade.icon}</div>
+            <div class="upgrade-name">${upgrade.name}</div>
+            <div class="upgrade-desc">${upgrade.description}</div>
+            <div class="upgrade-level">等級: ${level}</div>
+        `;
+        card.onclick = () => {
+            upgrade.apply(player);
+            menu.classList.add('hidden');
+            gameState = 'playing';
+            lastTime = performance.now(); // 重置時間，避免 deltaTime 過大
+            // 更新左側升級列表
+            updateUpgradesList();
+        };
+        options.appendChild(card);
+    });
+
+    // 顯示升級選單
+    menu.classList.remove('hidden');
+}
+
+// ========== 更新升級列表 ==========
+function updateUpgradesList() {
+    const container = document.getElementById('upgrades-items');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    // 獲取所有已升級的項目
+    UPGRADES.forEach(upgrade => {
+        const level = player[upgrade.id + 'Upgraded'] || 0;
+        if (level > 0) {
+            const item = document.createElement('div');
+            item.className = 'upgrade-item';
+            // 治療項目顯示次數，其他顯示LV
+            const displayText = upgrade.id === 'healing' ? `${level}次` : `LV.${level}`;
+            item.innerHTML = `
+                <div class="upgrade-item-icon">${upgrade.icon}</div>
+                <div class="upgrade-item-info">
+                    <span class="upgrade-item-name">${upgrade.name}</span>
+                    <span class="upgrade-item-level">${displayText}</span>
+                </div>
+            `;
+            container.appendChild(item);
+        }
+    });
+
+    // 如果沒有升級，顯示提示
+    if (container.children.length === 0) {
+        container.innerHTML = '<div style="color: #6a7b8a; font-size: 12px; text-align: center;">尚未升級</div>';
+    }
+}
+
+// ========== 渲染 ==========
+function render() {
+    // 清空畫布
+    ctx.fillStyle = '#16213e';
+    ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+
+    // 繪製網格
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < CONFIG.CANVAS_WIDTH; x += 50) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, CONFIG.CANVAS_HEIGHT);
+        ctx.stroke();
+    }
+    for (let y = 0; y < CONFIG.CANVAS_HEIGHT; y += 50) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(CONFIG.CANVAS_WIDTH, y);
+        ctx.stroke();
+    }
+
+    // 繪製召喚物
+    summons.forEach(summon => {
+        ctx.fillStyle = '#8e44ad';
+        ctx.beginPath();
+        ctx.arc(summon.x, summon.y, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('💀', summon.x, summon.y);
+    });
+
+    // 繪製 XP 球
+    xpOrbs.forEach(orb => {
+        ctx.fillStyle = '#3498db';
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, CONFIG.XP_SIZE, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('✨', orb.x, orb.y);
+    });
+
+    // 繪製敵人
+    enemies.forEach(enemy => {
+        // 血條
+        const hpPercent = enemy.hp / enemy.maxHP;
+        ctx.fillStyle = '#333';
+        ctx.fillRect(enemy.x - 20, enemy.y - 35, 40, 5);
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(enemy.x - 20, enemy.y - 35, 40 * hpPercent, 5);
+
+        // 敵人本體
+        ctx.fillStyle = enemy.color;
+        ctx.beginPath();
+        ctx.arc(enemy.x, enemy.y, CONFIG.ENEMY_SIZE / 2, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // 繪製子彈
+    projectiles.forEach(proj => {
+        ctx.fillStyle = proj.crit ? '#f39c12' : '#e94560';
+        ctx.beginPath();
+        ctx.arc(proj.x, proj.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // 戰士勇氣怒火範圍指示器（先繪製，避免遮蓋玩家）
+    if (player.id === 'warrior') {
+        const range = player.passiveRange || 120;
+        // 繪製半透明圓形區域
+        ctx.fillStyle = 'rgba(233, 69, 96, 0.1)';
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, range, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 繪製邊框
+        ctx.strokeStyle = 'rgba(233, 69, 96, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, range, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // 繪製玩家
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, CONFIG.PLAYER_SIZE / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 玩家頭像（居中對齊）
+    ctx.font = '30px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(selectedCharacter.emoji, player.x, player.y);
+
+    // 重置文字對齊屬性
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+}
+
+// ========== HUD 更新 ==========
+function updateHUD() {
+    const minutes = Math.floor(gameTime / 60);
+    const seconds = Math.floor(gameTime % 60);
+    document.getElementById('timer').textContent = 
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    document.getElementById('kill-count').textContent = killCount;
+    document.getElementById('level').textContent = player.level;
+    
+    const xpPercent = (player.xp / player.xpToNext) * 100;
+    document.getElementById('xp-bar').style.width = xpPercent + '%';
+    document.getElementById('xp-text').textContent = `${Math.floor(player.xp)}/${player.xpToNext}`;
+
+    // 更新血條
+    const hpPercent = (player.hp / player.maxHP) * 100;
+    document.getElementById('hp-bar').style.width = hpPercent + '%';
+    document.getElementById('hp-text').textContent = `${Math.floor(player.hp)}/${player.maxHP}`;
+}
+
+// ========== 遊戲結束 ==========
+function gameOver() {
+    gameState = 'gameover';
+    cancelAnimationFrame(gameLoop);
+
+    // 更新存檔
+    updateSaveStats();
+
+    // 檢查是否有新解鎖
+    checkUnlocks();
+
+    // 顯示結束畫面
+    const screen = document.getElementById('game-over-screen');
+    const stats = document.getElementById('final-stats');
+    
+    const minutes = Math.floor(gameTime / 60);
+    const seconds = Math.floor(gameTime % 60);
+    
+    stats.innerHTML = `
+        存活時間: ${minutes} 分 ${seconds} 秒<br>
+        達到等級: ${player.level}<br>
+        擊殺敵人: ${killCount}<br>
+        角色: ${selectedCharacter.name}
+    `;
+
+    document.getElementById('hud').style.display = 'none';
+    screen.classList.remove('hidden');
+}
+
+function checkUnlocks() {
+    let newUnlock = false;
+
+    CHARACTERS.forEach(char => {
+        if (!saveData.unlockedCharacters.includes(char.id) && char.unlockCheck(saveData)) {
+            saveData.unlockedCharacters.push(char.id);
+            newUnlock = true;
+        }
+    });
+
+    if (newUnlock) {
+        saveGameData();
+    }
+}
+
+// ========== 再玩一次 ==========
+function playAgain() {
+    // 重新開始遊戲（使用相同角色）
+    document.getElementById('game-over-screen').classList.add('hidden');
+    document.getElementById('hud').style.display = 'block';
+    startGame();
+}
+
+// ========== 返回選單 ==========
+function backToMenu() {
+    document.getElementById('game-over-screen').classList.add('hidden');
+    document.getElementById('main-menu').classList.remove('hidden');
+    renderCharacterGrid();
+    gameState = 'menu';
+}
+
+// ========== 工具函數 ==========
+function getDistance(a, b) {
+    return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
+
+// 啟動遊戲
+window.onload = init;
