@@ -274,31 +274,37 @@
         /* Virtual Joystick Styles */
         .virtual-joystick {
             position: absolute;
-            bottom: 50px;
+            bottom: 80px;
             left: 50px;
             z-index: 50;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
         }
 
         .joystick-base {
-            width: 120px;
-            height: 120px;
-            background: rgba(0, 0, 0, 0.5);
+            width: 140px;
+            height: 140px;
+            background: rgba(0, 0, 0, 0.6);
             border: 3px solid #0f3460;
             border-radius: 50%;
             position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
+            touch-action: none;
         }
 
         .joystick-stick {
-            width: 50px;
-            height: 50px;
-            background: rgba(233, 69, 96, 0.8);
+            width: 60px;
+            height: 60px;
+            background: rgba(233, 69, 96, 0.9);
             border-radius: 50%;
             position: absolute;
-            border: 2px solid #e94560;
-            transition: transform 0.1s ease-out;
+            border: 3px solid #e94560;
+            transition: transform 0.05s ease-out;
+            touch-action: none;
         }
 
         .virtual-joystick.hidden {
@@ -308,21 +314,21 @@
         /* Skill Buttons */
         .skill-buttons {
             position: absolute;
-            bottom: 50px;
+            bottom: 80px;
             right: 50px;
             display: flex;
-            gap: 15px;
+            gap: 20px;
             z-index: 50;
             pointer-events: auto;
         }
 
         .skill-btn {
-            width: 70px;
-            height: 70px;
-            background: rgba(128, 128, 128, 0.5);
+            width: 85px;
+            height: 85px;
+            background: rgba(128, 128, 128, 0.6);
             border: 3px solid #666;
             border-radius: 50%;
-            font-size: 32px;
+            font-size: 38px;
             cursor: not-allowed;
             display: flex;
             justify-content: center;
@@ -330,6 +336,7 @@
             transition: all 0.2s;
             position: relative;
             pointer-events: auto;
+            touch-action: manipulation;
         }
 
         .skill-btn.ready {
@@ -347,8 +354,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) rotate(-90deg);
-            width: 64px;
-            height: 64px;
+            width: 79px;
+            height: 79px;
             border-radius: 50%;
             background: conic-gradient(rgba(0, 0, 0, 0.7) 0deg, transparent 0deg);
             pointer-events: none;
@@ -360,20 +367,20 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 32px;
+            font-size: 38px;
             z-index: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            width: 64px;
-            height: 64px;
+            width: 79px;
+            height: 79px;
             pointer-events: none;
         }
 
         .skill-btn .skill-label {
             position: absolute;
-            bottom: -20px;
-            font-size: 12px;
+            bottom: -25px;
+            font-size: 14px;
             color: #fff;
             text-shadow: 1px 1px 2px #000;
             white-space: nowrap;
@@ -949,6 +956,87 @@
             font-size: 24px;
             margin-bottom: 30px;
             line-height: 2;
+        }
+
+        /* Responsive Design - iPad Pro */
+        @media (min-width: 1024px) and (max-width: 1366px) {
+            .virtual-joystick {
+                bottom: 100px;
+                left: 80px;
+            }
+
+            .joystick-base {
+                width: 150px;
+                height: 150px;
+                background: rgba(0, 0, 0, 0.3);
+                border: 2px solid rgba(15, 52, 96, 0.5);
+            }
+
+            .joystick-stick {
+                width: 65px;
+                height: 65px;
+                background: rgba(233, 69, 96, 0.5);
+                border: 2px solid rgba(233, 69, 96, 0.4);
+            }
+
+            .skill-buttons {
+                bottom: 100px;
+                right: 80px;
+                gap: 25px;
+            }
+
+            .skill-btn {
+                width: 90px;
+                height: 90px;
+                font-size: 40px;
+            }
+
+            .skill-btn .cooldown-overlay {
+                width: 84px;
+                height: 84px;
+            }
+
+            .skill-btn > div:not(.cooldown-overlay):not(.skill-label) {
+                font-size: 40px;
+                width: 84px;
+                height: 84px;
+            }
+
+            .skill-btn .skill-label {
+                bottom: -28px;
+                font-size: 15px;
+            }
+
+            .xp-bar-container {
+                width: 500px;
+                height: 30px;
+            }
+
+            .xp-bar {
+                font-size: 14px;
+            }
+
+            .hp-bar-container {
+                width: 250px;
+                height: 25px;
+            }
+
+            .hp-bar {
+                font-size: 14px;
+            }
+
+            .upgrades-list {
+                width: 140px;
+                padding: 10px;
+            }
+
+            .hud {
+                font-size: 20px;
+            }
+
+            .key-info {
+                font-size: 16px;
+            }
         }
 
         /* Responsive Design */

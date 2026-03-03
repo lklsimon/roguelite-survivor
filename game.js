@@ -14,6 +14,9 @@ let joystickActive = false;
 let joystickX = 0;
 let joystickY = 0;
 
+// iPad Pro 專用偵測
+const isIPadPro = navigator.userAgent.includes('Mac OS X') && navigator.maxTouchPoints > 0;
+
 // ========== 主動技能系統 ==========
 // 每個角色的技能選項
 const SKILL_OPTIONS = {
@@ -622,27 +625,54 @@ function initVirtualJoystick() {
     const joystickBase = document.getElementById('joystick-base');
     const joystickStick = document.getElementById('joystick-stick');
 
-    // 只在觸控設備上顯示
-    if (!isTouchDevice) {
+    // 確保在觸控設備上顯示（包括 iPad Pro）
+    const isActuallyTouchDevice = isTouchDevice || isIPadPro;
+    if (!isActuallyTouchDevice) {
         joystick.classList.add('hidden');
         return;
     }
 
     joystick.classList.remove('hidden');
 
+    // iPad Pro 使用全局觸控事件
     let touchId = null;
+    let joystickRect = null;
     const baseRadius = 60;
     const stickRadius = 25;
 
-    joystickBase.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        const touch = e.changedTouches[0];
-        touchId = touch.identifier;
-        joystickActive = true;
+    const getJoystickCenter = () => {
+        joystickRect = joystickBase.getBoundingClientRect();
+        return {
+            x: joystickRect.left + joystickRect.width / 2,
+            y: joystickRect.top + joystickRect.height / 2
+        };
+    };
+
+    // 使用全局 touchstart 事件監聽
+    document.addEventListener('touchstart', (e) => {
+        // 檢查是否有觸控點在 joystick 範圍內
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
+            const rect = joystickBase.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const distance = Math.sqrt(
+                Math.pow(touch.clientX - centerX, 2) +
+                Math.pow(touch.clientY - centerY, 2)
+            );
+
+            if (distance < baseRadius && touchId === null) {
+                touchId = touch.identifier;
+                joystickActive = true;
+                e.preventDefault();
+                break;
+            }
+        }
     }, { passive: false });
 
-    joystickBase.addEventListener('touchmove', (e) => {
-        e.preventDefault();
+    document.addEventListener('touchmove', (e) => {
+        if (!joystickActive || touchId === null) return;
+
         for (let i = 0; i < e.changedTouches.length; i++) {
             if (e.changedTouches[i].identifier === touchId) {
                 const touch = e.changedTouches[i];
@@ -668,13 +698,13 @@ function initVirtualJoystick() {
                 joystickX = deltaX / maxDistance;
                 joystickY = deltaY / maxDistance;
 
+                e.preventDefault();
                 break;
             }
         }
     }, { passive: false });
 
     const endTouch = (e) => {
-        e.preventDefault();
         for (let i = 0; i < e.changedTouches.length; i++) {
             if (e.changedTouches[i].identifier === touchId) {
                 touchId = null;
@@ -687,8 +717,8 @@ function initVirtualJoystick() {
         }
     };
 
-    joystickBase.addEventListener('touchend', endTouch, { passive: false });
-    joystickBase.addEventListener('touchcancel', endTouch, { passive: false });
+    document.addEventListener('touchend', endTouch);
+    document.addEventListener('touchcancel', endTouch);
 }
 
 // ========== 角色選擇界面 ==========
